@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Login</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        .login-section, .welcome-section {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+        }
+
+        .welcome-section {
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            background-size: 200% 200%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: translateX(100%);
+            opacity: 0;
+            animation: gradientMove 15s ease infinite;
+        }
+
+        .welcome-section.active {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .login-section.inactive {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .welcome-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 600px;
+            width: 90%;
+            color: white;
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+
+        .welcome-section.active .welcome-card {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .welcome-card h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #fff;
+            position: relative;
+            display: inline-block;
+        }
+
+        .welcome-card h1::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 3px;
+            bottom: -5px;
+            left: 0;
+            background: #ffeb3b;
+            transition: width 0.5s ease;
+        }
+
+        .welcome-section.active h1::after {
+            width: 100%;
+        }
+
+        .welcome-card p {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .user-email {
+            font-weight: bold;
+            color: #ffeb3b;
+            display: inline-block;
+            position: relative;
+            padding: 0 5px;
+        }
+
+        .user-email::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 235, 59, 0.1);
+            left: 0;
+            top: 0;
+            transform: skew(-10deg);
+            z-index: -1;
+        }
+
+        .logout-btn {
+            background: #fff;
+            color: #2196F3;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .logout-btn:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-box {
+            transition: transform 0.5s ease, opacity 0.5s ease;
+        }
+        
+        .login-box.hide {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        .register-box {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .register-box.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .success-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            border-radius: 8px;
+            transform: translateX(200%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .success-message.show {
+            transform: translateX(0);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .fade-out {
+            opacity: 0;
+            transform: scale(0.95);
+            transition: all 0.3s ease;
+        }
+
+        button {
+            position: relative;
+            overflow: hidden;
+        }
+
+        button .button-text {
+            transition: all 0.2s ease;
+        }
+
+        button.loading .button-text {
+            opacity: 0;
+        }
+
+        button.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid #1565C0;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-section">
+        <section>
+            <div class="login-box">
+                <form id="loginForm">
+                    <h2>Login</h2>
+                    <div class="input-box">
+                        <span class="icon"><ion-icon name="mail-outline"></ion-icon></span>
+                        <input type="email" id="email" required>
+                        <label>Email</label> 
+                    </div>
+                    <div class="input-box">
+                        <span class="icon"><ion-icon name="lock-closed-outline"></ion-icon></span>
+                        <input type="password" id="password" required>
+                        <label>Password</label> 
+                    </div>
+                    <div class="remember-forgot">
+                        <label><input type="checkbox" id="rememberMe"> Remember me</label>
+                        <a href="#" id="forgotPassword">Forgot Password?</a>
+                    </div>
+                    <button type="submit"><span class="button-text">Login</span></button>
+                    <div class="register-link">
+                        <p>Don't have an account? <a href="#" id="registerLink">Register</a></p>
+                    </div>
+                </form>
+            </div>
+
+            <div class="register-box">
+                <form id="registerForm">
+                    <h2>Register</h2>
+                    <div class="input-box">
+                        <span class="icon"><ion-icon name="mail-outline"></ion-icon></span>
+                        <input type="email" id="regEmail" required>
+                        <label>Email</label> 
+                    </div>
+                    <div class="input-box">
+                        <span class="icon"><ion-icon name="lock-closed-outline"></ion-icon></span>
+                        <input type="password" id="regPassword" required>
+                        <label>Password</label> 
+                    </div>
+                    <div class="input-box">
+                        <span class="icon"><ion-icon name="lock-closed-outline"></ion-icon></span>
+                        <input type="password" id="confirmPassword" required>
+                        <label>Confirm Password</label> 
+                    </div>
+                    <button type="submit"><span class="button-text">Register</span></button>
+                    <div class="register-link">
+                        <p>Already have an account? <a href="#" id="loginLink">Login</a></p>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+
+    <div class="welcome-section">
+        <div class="welcome-card">
+            <h1>Welcome!</h1>
+            <p>Hello <span id="userEmail" class="user-email"></span></p>
+            <p>You have successfully logged into your account. Feel free to explore!</p>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="success-message" id="successMessage"></div>
+
+    <script>
+        const secretKey = "mySecretKey123";  // Change this key for better security
+        const loginSection = document.querySelector('.login-section');
+        const welcomeSection = document.querySelector('.welcome-section');
+        const loginBox = document.querySelector('.login-box');
+        const registerBox = document.querySelector('.register-box');
+        const successMessage = document.getElementById('successMessage');
+
+        // Check if user is already logged in
+        window.onload = function() {
+            const userEmail = sessionStorage.getItem('userEmail');
+            if (userEmail) {
+                document.getElementById('userEmail').textContent = userEmail;
+                loginSection.classList.add('inactive');
+                welcomeSection.classList.add('active');
+            }
+            
+            const rememberedEmail = localStorage.getItem('rememberedEmail');
+            if (rememberedEmail) {
+                document.getElementById("email").value = rememberedEmail;
+                document.getElementById("rememberMe").checked = true;
+            }
+        };
+
+        // Show success message
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.classList.add('show');
+            setTimeout(() => {
+                successMessage.classList.remove('show');
+            }, 3000);
+        }
+
+        // Switch between login and register forms
+        document.getElementById("registerLink").addEventListener("click", function(event) {
+            event.preventDefault();
+            loginBox.classList.add('hide');
+            setTimeout(() => {
+                registerBox.classList.add('show');
+            }, 500);
+        });
+
+        document.getElementById("loginLink").addEventListener("click", function(event) {
+            event.preventDefault();
+            registerBox.classList.remove('show');
+            setTimeout(() => {
+                loginBox.classList.remove('hide');
+            }, 500);
+        });
+
+        // Encrypt function
+        function encryptData(data) {
+            return CryptoJS.AES.encrypt(data, secretKey).toString();
+        }
+
+        // Decrypt function
+        function decryptData(data) {
+            let bytes = CryptoJS.AES.decrypt(data, secretKey);
+            return bytes.toString(CryptoJS.enc.Utf8);
+        }
+
+        // Handle Login
+        document.getElementById("loginForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.classList.add('loading');
+            
+            let email = document.getElementById("email").value;
+            let password = document.getElementById("password").value;
+            let rememberMe = document.getElementById("rememberMe").checked;
+
+            let storedEncryptedPass = localStorage.getItem(email);
+
+            if (storedEncryptedPass) {
+                let decryptedPass = decryptData(storedEncryptedPass);
+                if (password === decryptedPass) {
+                    if (rememberMe) {
+                        localStorage.setItem('rememberedEmail', email);
+                    }
+                    sessionStorage.setItem('userEmail', email);
+                    document.getElementById('userEmail').textContent = email;
+                    showSuccess("Login successful!");
+                    
+                    // Animate transition
+                    loginSection.classList.add('inactive');
+                    welcomeSection.classList.add('active');
+                } else {
+                    submitBtn.classList.remove('loading');
+                    loginBox.classList.add('shake');
+                    setTimeout(() => loginBox.classList.remove('shake'), 400);
+                    showSuccess("Incorrect password!");
+                }
+            } else {
+                submitBtn.classList.remove('loading');
+                loginBox.classList.add('shake');
+                setTimeout(() => loginBox.classList.remove('shake'), 400);
+                showSuccess("No account found!");
+            }
+        });
+
+        // Handle Registration
+        document.getElementById("registerForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.classList.add('loading');
+
+            let email = document.getElementById("regEmail").value;
+            let password = document.getElementById("regPassword").value;
+            let confirmPassword = document.getElementById("confirmPassword").value;
+
+            if (password !== confirmPassword) {
+                submitBtn.classList.remove('loading');
+                showSuccess("Passwords don't match!");
+                return;
+            }
+
+            if (localStorage.getItem(email)) {
+                submitBtn.classList.remove('loading');
+                showSuccess("Email already registered!");
+                return;
+            }
+
+            let encryptedPass = encryptData(password);
+            localStorage.setItem(email, encryptedPass);
+            
+            setTimeout(() => {
+                submitBtn.classList.remove('loading');
+                showSuccess("Registration successful!");
+                registerBox.classList.remove('show');
+                setTimeout(() => {
+                    loginBox.classList.remove('hide');
+                    document.getElementById("email").value = email;
+                }, 500);
+            }, 800);
+        });
+
+        // Handle logout
+        function logout() {
+            welcomeSection.classList.remove('active');
+            loginSection.classList.remove('inactive');
+            sessionStorage.removeItem('userEmail');
+            if (!document.getElementById("rememberMe").checked) {
+                localStorage.removeItem('rememberedEmail');
+                document.getElementById("email").value = '';
+            }
+            showSuccess("Logged out successfully!");
+        }
+
+        // Handle forgot password
+        document.getElementById("forgotPassword").addEventListener("click", function(event) {
+            event.preventDefault();
+            showSuccess("Password reset functionality coming soon!");
+        });
+    </script>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</body>
+</html>
